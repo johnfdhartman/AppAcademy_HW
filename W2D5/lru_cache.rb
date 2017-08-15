@@ -1,98 +1,75 @@
 require 'singleton'
 
-class LRU < SizedBidirectionalLinkedList
-  attr_reader :node_hash, :count, :front_node, :back_node
-  def initialize(max_size)
-    @node_hash = Hash.new(nil)
-    super
-  end
+class LRUCache
+  attr_reader :count, :least_recent, :most_recent
 
-  def add_node(el)
-    key = el.hash
-    new_node = LinkedNode.new(el, key, @front_node, @null_node)
-    remove_node(new_node) unless @node_hash[key].nil?
-    @node_hash[key] = new_node
-    if @count == 0
-      @back_node = new_node
+    def initialize(max_size)
+      @big_hash = Hash.new({})
+      @max_size = max_size
+      @count = 0
+      @least_recent = {}
+      @most_recent = {}
+      @null_node = {value: nil, key: nil, prev_node: nil, next_node: nil}
     end
-    @front_node.next_node = new_node
-    @front_node = new_node
-    @count+=1
-  end
 
-  def remove_node(node)
-    node.prev_node.next_node = node.next_node
-    node.next_node.prev_node = node.prev_node
-    @node_hash[node.key] = nil
-    @count -= 1
-  end
-end
-
-class SizedBidirectionalLinkedList
-  attr_reader :front_node, :back_node, :count
-  def initialize(max_size)
-    @null_node = NullNode.instance
-    @front_node, @back_node = @null_node, @null_node
-    @max_size = max_size
-    @count = 0
-  end
-
-  def add_node(el, key=nil)
-    new_node = LinkedNode.new(el, key, @front_node, @null_node)
-    if @count == 0
-      @back_node = new_node
+    def add_to_top(el)
+      #creates a {value, key, prev_node, next_node} Hash
+      #adds it to the big hash
+      #links up the previous most_recent to this one
+      new_node = {el: el, key: el.hash,
+                  prev_node: @most_recent, next_node: @null_node}
+      @least_recent = new_node if @count == 0
+      @most_recent[:next_node] = new_node
+      @most_recent = new_node
+      @count+=1
     end
-    @front_node.next_node = new_node
-    @front_node = new_node
-    @count+=1
-  end
 
-  def show
-    out = []
-    current_node = @back_node
-    until current_node == @null_node
-      out << current_node.val
-      current_node = current_node.next_node
+    def remove_el(el)
+      key = el.hash
+      node = @big_hash[key]
+      if node == @least_recent
+        remove_from_bottom(node, key)
+      elsif node == @most_recent
+        remove_from_top(node, key)
+      else
+        remove_from_middle(node,key)
+      end
+      count+=1
     end
-    p out
-  end
 
-  def pop_from_bottom
-    @back_node.next_node.prev_node = @null_node
-    @back_node = @back_node.next_node
-    @count -= 1
-  end
+    def remove_from_middle(node,key)
+      node = @big_hash[key]
+      node[:prev_node][:next_node] = node[:next_node]
+      node[:next_node][:prev_node] = node[:prev_node]
+      @big_hash.delete(key)
+      count -=1
+    end
 
-end
+    def remove_from_bottom(node, key)
+      @least_recent = node[:next_node]
+      @least_recent[:prev_node] = @null_node
+      @big_hash.delete(key)
+    end
 
-class LinkedNode
-  attr_reader :val
-  attr_accessor :prev_node, :next_node
+    def remove_from_top(node, key)
+      @most_recent = node[:prev_node]
+      @most_recent[:next_node] = @null_node
+      @big_hash.delete(key)
+    end
 
-  def initialize(val, key, prev_node=nil, next_node=nil)
-    @val = val
-    @key = key
-    @prev_node = prev_node
-    @next_node = next_node
-  end
-end
 
-class NullNode < LinkedNode
+    def show
+      arr = []
+      current_node = @least_recent
+      until current_node == @null_node
+        arr << current_node[:el]
+        current_node = current_node[:next_node]
+      end
+      p arr
+    end
 
-  attr_reader :key, :val, :prev_node, :next_node
-  def initialize
-    @key = nil
-    @val = nil
-    @prev_node = self
-    @next_node = self
-  end
-
-  def prev_node=(val)
-    nil
-  end
-
-  def next_node=(val)
-    nil
-  end
+    def [](key)
+      node = @big_hash.key[]
+    end
 
 end
